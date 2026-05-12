@@ -517,6 +517,9 @@ void saveConfig() {
   prefs.putBytes("den",    &cfgDen,   sizeof(cfgDen));
   prefs.putBytes("lican",  lichAn,    sizeof(lichAn));
   prefs.putUChar("chedom", (uint8_t)cheDo);
+  // Lưu trạng thái rèm cửa để phục hồi sau mất điện
+  for (int i = 0; i < SO_REM; i++)
+    prefs.putUChar(("rem" + String(i)).c_str(), (uint8_t)trangThaiRem[i]);
   prefs.end();
 }
 
@@ -527,7 +530,70 @@ void loadConfig() {
   prefs.getBytes("den",    &cfgDen,   sizeof(cfgDen));
   prefs.getBytes("lican",  lichAn,    sizeof(lichAn));
   cheDo = (CheDo)prefs.getUChar("chedom", (uint8_t)TU_DONG);
+  // Phục hồi trạng thái rèm cửa (dừng mặc định nếu chưa có)
+  for (int i = 0; i < SO_REM; i++)
+    trangThaiRem[i] = (TrangThaiRem)prefs.getUChar(("rem" + String(i)).c_str(), (uint8_t)REM_DUNG);
   prefs.end();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PHỤC HỒI SAU MẤT ĐIỆN — Ca Cho Ăn Bị Lỡ
+// ════════════════════════════════════════════════════════════════
+void luuThoiGianTatDien() {
+  // Gọi mỗi phút để cập nhật timestamp gần nhất trước khi mất điện
+  prefs.begin("cn_tt", false);
+  prefs.putULong("t_off", (uint32_t)time(nullptr));
+  // Lưu trạng thái ca cho ăn đã chạy trong ngày
+  // caChoAnDaChay[i] = true nếu ca i đã chạy hôm nay
+  prefs.end();
+}
+
+void kiemTraCaChoAnBiLo() {
+  // Chờ NTP sync
+  time_t now = time(nullptr);
+  int retry = 0;
+  while (now < 100000 && retry < 15) {
+    delay(1000); esp_task_wdt_reset();
+    now = time(nullptr); retry++;
+  }
+  if (now < 100000) return; // Không có NTP, bỏ qua
+
+  prefs.begin("cn_tt", true);
+  uint32_t tTatDien = prefs.getULong("t_off", 0);
+  prefs.end();
+
+  if (tTatDien == 0) return;
+
+  struct tm* tNow = localtime(&now);
+  struct tm* tOff = localtime((time_t*)&tTatDien);
+
+  // Kiểm tra từng ca trong ngày — nếu ca bị lỡ và còn trong ngày thì chạy bù
+  for (int l = 0; l < 3; l++) {
+    int caGio  = lichAn[l].gio;
+    int caPhut = lichAn[l].phut;
+
+    // Ca này đã qua giờ chạy
+    bool caQua = (tNow->tm_hour > caGio) ||
+                 (tNow->tm_hour == caGio && tNow->tm_min > caPhut);
+
+    // Lúc mất điện chưa tới giờ ca này
+    bool truocKhiTat = (tOff->tm_hour < caGio) ||
+                       (tOff->tm_hour == caGio && tOff->tm_min < caPhut);
+
+    // Ca bị lỡ = đã qua giờ + lúc mất điện chưa chạy + trong vòng 18:00
+    bool conTrongNgay = (tNow->tm_hour < 18);
+
+    if (caQua && truocKhiTat && conTrongNgay) {
+      Serial.println("Chay bu ca " + String(l) + " bi lo luc mat dien");
+      for (int m = 0; m < SO_CHOAN; m++)
+        if (lichAn[l].may[m]) setRelay(K_CHOAN1 + m, true);
+      delay(lichAn[l].giay_chay * 1000UL);
+      for (int m = 0; m < SO_CHOAN; m++) setRelay(K_CHOAN1 + m, false);
+
+      String msg = "{\"ca\":" + String(l) + ",\"ly_do\":\"phuc_hoi_mat_dien\"}";
+      mqtt.publish(("livestock/"+deviceID+"/cho_an/done").c_str(), msg.c_str());
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -765,6 +831,9 @@ void setup() {
   mqtt.setBufferSize(512);
   connectMQTT();
 
+  // Kiểm tra ca cho ăn bị lỡ do mất điện
+  kiemTraCaChoAnBiLo();
+
   lcd.clear();
   lcd.setCursor(0, 0); lcd.print("San sang!");
 }
@@ -772,10 +841,18 @@ void setup() {
 // ════════════════════════════════════════════════════════════════
 //  LOOP
 // ════════════════════════════════════════════════════════════════
+unsigned long lastLuuTT = 0;
+
 void loop() {
   esp_task_wdt_reset();
   if (!mqtt.connected()) connectMQTT();
   mqtt.loop();
+
+  // Lưu timestamp mỗi 60 giây để phát hiện ca cho ăn bị lỡ
+  if (millis() - lastLuuTT > 60000) {
+    lastLuuTT = millis();
+    luuThoiGianTatDien();
+  }
 
   // Cảm biến: mỗi 30 giây
   if (millis() - lastSensor > 30000) {
