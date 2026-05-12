@@ -69,14 +69,18 @@ const char* NTP_SERVER = "pool.ntp.org";
 #include <esp_task_wdt.h>
 #include <time.h>
 
-// ── Cấu hình server ──────────────────────────────────────────────
-const char* MQTT_HOST  = "mqtt.nextfarm.vn";
-const int   MQTT_PORT  = 1883;
-const char* MQTT_USER  = "device";
-const char* MQTT_PASS  = "secret";
+// ── Cấu hình mặc định (override qua WiFiManager portal) ──────────
 const char* NTP_SERVER = "pool.ntp.org";
 const char* TZ_VN      = "ICT-7";
 #define WDT_TIMEOUT 30
+#define MQTT_PORT_DEFAULT 1883
+
+// Cấu hình nhập qua portal WiFiManager lần đầu — lưu flash
+char cfgMaKhach[32]  = "";
+char cfgMqttHost[64] = "mqtt.nextfarm.vn";
+char cfgMqttUser[32] = "device";
+char cfgMqttPass[32] = "secret";
+char cfgMqttPort[8]  = "1883";
 
 // ── GPIO CB2S ────────────────────────────────────────────────────
 #define PIN_SDA      0
@@ -175,7 +179,8 @@ PubSubClient      mqtt(net);
 Preferences       prefs;
 
 // ── Biến toàn cục ───────────────────────────────────────────────
-String      deviceID;
+String      deviceID;    // = cfgMaKhach nếu đã cài, fallback MAC
+String      macAddress;  // MAC address thực của thiết bị
 CheDo       cheDo = TU_DONG;
 
 CauHinhQuat cfgQuat  = {22, 26, 28, 30, 33, 35, 25.0};
@@ -637,14 +642,49 @@ void mqttCallback(char* topic, byte* payload, unsigned int len) {
 }
 
 // ════════════════════════════════════════════════════════════════
+//  LOAD / SAVE CẤU HÌNH MQTT + MÃ KHÁCH HÀNG
+// ════════════════════════════════════════════════════════════════
+void loadMqttConfig() {
+  prefs.begin("mqtt_cfg", true);
+  prefs.getString("ma_khach",  cfgMaKhach,  sizeof(cfgMaKhach));
+  prefs.getString("mqtt_host", cfgMqttHost, sizeof(cfgMqttHost));
+  prefs.getString("mqtt_user", cfgMqttUser, sizeof(cfgMqttUser));
+  prefs.getString("mqtt_pass", cfgMqttPass, sizeof(cfgMqttPass));
+  prefs.getString("mqtt_port", cfgMqttPort, sizeof(cfgMqttPort));
+  prefs.end();
+}
+
+void saveMqttConfig(WiFiManagerParameter& pMaKhach,
+                    WiFiManagerParameter& pHost,
+                    WiFiManagerParameter& pUser,
+                    WiFiManagerParameter& pPass,
+                    WiFiManagerParameter& pPort) {
+  prefs.begin("mqtt_cfg", false);
+  prefs.putString("ma_khach",  pMaKhach.getValue());
+  prefs.putString("mqtt_host", pHost.getValue());
+  prefs.putString("mqtt_user", pUser.getValue());
+  prefs.putString("mqtt_pass", pPass.getValue());
+  prefs.putString("mqtt_port", pPort.getValue());
+  prefs.end();
+  strlcpy(cfgMaKhach,  pMaKhach.getValue(), sizeof(cfgMaKhach));
+  strlcpy(cfgMqttHost, pHost.getValue(),    sizeof(cfgMqttHost));
+  strlcpy(cfgMqttUser, pUser.getValue(),    sizeof(cfgMqttUser));
+  strlcpy(cfgMqttPass, pPass.getValue(),    sizeof(cfgMqttPass));
+  strlcpy(cfgMqttPort, pPort.getValue(),    sizeof(cfgMqttPort));
+}
+
+// ════════════════════════════════════════════════════════════════
 //  MQTT KẾT NỐI
 // ════════════════════════════════════════════════════════════════
 void connectMQTT() {
   String lwt = "livestock/" + deviceID + "/status";
   while (!mqtt.connected()) {
-    if (mqtt.connect(deviceID.c_str(), MQTT_USER, MQTT_PASS,
+    if (mqtt.connect(deviceID.c_str(), cfgMqttUser, cfgMqttPass,
                      lwt.c_str(), 1, true, "offline")) {
       mqtt.publish(lwt.c_str(), "online", true);
+      String info = "{\"ma_khach\":\"" + deviceID +
+                    "\",\"mac\":\"" + macAddress + "\",\"fw\":\"1.0.0\"}";
+      mqtt.publish(("livestock/"+deviceID+"/info").c_str(), info.c_str(), true);
       mqtt.subscribe(("livestock/" + deviceID + "/#").c_str());
     } else {
       esp_task_wdt_reset(); delay(3000);
@@ -683,16 +723,44 @@ void setup() {
   digitalWrite(PIN_LED_AUTO, cheDo == TU_DONG);
   digitalWrite(PIN_LED_TAY,  cheDo == THU_CONG);
 
+  // Đọc MAC address thực
+  uint8_t m[6]; WiFi.macAddress(m);
+  macAddress = "";
+  for (int i = 0; i < 6; i++) { if(m[i]<16) macAddress+="0"; macAddress+=String(m[i],HEX); }
+
+  // Đọc cấu hình MQTT + mã khách hàng từ flash
+  loadMqttConfig();
+
+  // WiFiManager portal — cài đặt lần đầu
   WiFiManager wm;
-  String apName = "ChuongTrai_" + String((uint32_t)ESP.getEfuseMac(), HEX);
+  String apName = "ChuongTrai_" + macAddress.substring(8);
+
+  WiFiManagerParameter pMaKhach("ma_khach",  "Ma khach hang (VD: CN_001)", cfgMaKhach,  32);
+  WiFiManagerParameter pHost    ("mqtt_host", "MQTT Host",                   cfgMqttHost, 64);
+  WiFiManagerParameter pUser    ("mqtt_user", "MQTT Username",               cfgMqttUser, 32);
+  WiFiManagerParameter pPass    ("mqtt_pass", "MQTT Password",               cfgMqttPass, 32);
+  WiFiManagerParameter pPort    ("mqtt_port", "MQTT Port",                   cfgMqttPort, 8);
+
+  wm.addParameter(&pMaKhach);
+  wm.addParameter(&pHost);
+  wm.addParameter(&pUser);
+  wm.addParameter(&pPass);
+  wm.addParameter(&pPort);
+
+  wm.setSaveParamsCallback([&]() {
+    saveMqttConfig(pMaKhach, pHost, pUser, pPass, pPort);
+    Serial.println("Config saved: " + String(cfgMaKhach));
+  });
+
   wm.autoConnect(apName.c_str(), "12345678");
 
-  uint8_t m[6]; WiFi.macAddress(m);
-  deviceID = "";
-  for (int i = 0; i < 6; i++) { if(m[i]<16) deviceID+="0"; deviceID+=String(m[i],HEX); }
+  // Xác định deviceID: mã khách hàng hoặc fallback MAC
+  deviceID = (strlen(cfgMaKhach) > 0) ? String(cfgMaKhach) : macAddress;
+  Serial.println("Device ID: " + deviceID);
 
   configTzTime(TZ_VN, NTP_SERVER);
-  mqtt.setServer(MQTT_HOST, MQTT_PORT);
+  int port = atoi(cfgMqttPort);
+  mqtt.setServer(cfgMqttHost, port > 0 ? port : MQTT_PORT_DEFAULT);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(512);
   connectMQTT();
