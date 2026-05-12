@@ -2,6 +2,49 @@
 
 ---
 
+## 2.0 Sơ Đồ Mermaid — Kiến Trúc Tổng Quan
+
+```mermaid
+graph TD
+    P[220VAC Lưới điện] --> E[Aptomat 2P 16A ELCB]
+    E --> MW[Mean Well HDR-60-5\n5VDC/12A]
+    E --> TX[Biến áp 24VAC 50VA]
+    E --> CB1[CB 1P 16A Quạt+Bơm phun]
+    E --> CB2[CB 1P 10A Đèn+Rèm+Cho ăn]
+
+    MW --> CBS[CB2S BK7231N\nTuya LibreTuya]
+    MW --> AMS[AMS1117-3.3\n3.3V Sensor Rail]
+    MW --> RL[Relay Board x4\n32 kênh]
+
+    AMS --> SHT[SHT30 x3\nĐầu/Giữa/Cuối chuồng]
+    AMS --> SEN[SEN0321\nNH₃ Amoniac x2]
+    AMS --> ADS[ADS1115\nADC Analog]
+    AMS --> OLED[OLED SH1106\n1.3 inch]
+    AMS --> VLX[VL53L0X\nMức cám x4]
+
+    CBS -->|I2C GPIO0/1| MCP1[MCP23017 0x20\nK0–K15]
+    CBS -->|I2C GPIO0/1| MCP2[MCP23017 0x21\nK16–K31]
+    CBS -->|GPIO8| DS18[DS18B20\nNhiệt độ dự phòng]
+    CBS -->|GPIO14| FM[YF-B7 SS304\nFlow meter nước]
+    CBS -->|GPIO4/5| CO2[MH-Z19B\nCO₂ UART 3.3V]
+
+    MCP1 --> RL
+    MCP2 --> RL
+    TX --> VAN[Van nước uống 24VAC\nx4 khu]
+    CB1 --> QT[Quạt thông gió x6\n220VAC + Contactor]
+    CB1 --> BPN[Bơm phun sương\n220VAC cao áp]
+    CB2 --> REM[Rèm cửa 2 chiều\nx4 motor]
+    CB2 --> CHOAN[Máy cho ăn\nvít tải INOX x2]
+    RL --> VAN
+    RL --> QT
+    RL --> REM
+    RL --> CHOAN
+
+    CBS -->|WiFi MQTT| NF[NextFarm Platform\nbroker.hosco.com.vn]
+```
+
+---
+
 ## 2.1 Sơ Đồ Tổng Quan
 
 ```
