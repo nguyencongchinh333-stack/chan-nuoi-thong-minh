@@ -75,7 +75,7 @@ SHT30 (Nhiệt độ + Độ ẩm) — lắp 3 điểm:
   - Đặt ở độ cao 1–1.5m (ngang với vật nuôi)
   - Dùng hộp nhựa có lỗ thông khí để bảo vệ cảm biến
 
-MQ-135 (NH₃):
+SEN0321 (NH₃):
   - Đặt ở độ cao 0.5–1m (nơi vật nuôi thở)
   - Tránh đặt gần cửa sổ hoặc quạt
   - Cần làm ấm 24–48h trước khi hiệu chỉnh ở ngoài trời
@@ -85,7 +85,7 @@ MH-Z19B (CO₂):
   - Tránh ánh nắng trực tiếp
   - Kết nối UART qua dây 4 chân
 
-HC-SR04 (Mức cám):
+AJ-SR04M (Mức cám):
   - Gắn trên nắp thùng cám, hướng xuống
   - Khoảng cách tối thiểu từ cảm biến đến mặt cám: 5cm
   - Tính % = (chiều cao thùng - khoảng cách đo) / chiều cao thùng × 100
@@ -159,7 +159,7 @@ Máy vít tải INOX:
   1. Đặt thùng chứa cám phía trên cao
   2. Lắp vít tải INOX nghiêng 30–45° xuống máng ăn
   3. Kết nối motor với đầu vít tải
-  4. Gắn HC-SR04 trên nắp thùng cám đo mức
+  4. Gắn AJ-SR04M trên nắp thùng cám đo mức
   5. Gắn load cell dưới thùng cám (tùy chọn)
   6. Đấu dây motor 220VAC qua relay K28/K29
   7. Test: chạy motor 5 giây → kiểm tra cám ra đều
@@ -208,11 +208,11 @@ Cấu hình WiFi:
   - K28/K29: Bật relay 5 giây → máy cho ăn chạy
 □ Cảm biến:
   - SHT30: Serial hiện nhiệt độ + độ ẩm hợp lý
-  - MQ-135: Giá trị NH₃ < 10ppm trong không khí sạch
-  - HC-SR04: Đo khoảng cách thùng cám đúng
+  - SEN0321: Giá trị NH₃ < 10ppm trong không khí sạch
+  - AJ-SR04M: Đo khoảng cách thùng cám đúng
 □ LCD hiển thị đúng trạng thái
 □ MQTT: Nhận được livestcok/{id}/sensor trên app
-□ Test cảnh báo: Che MQ-135 lại → xem app nhận alert NH₃
+□ Test cảnh báo: Che SEN0321 lại → xem app nhận alert NH₃
 □ Test phục hồi mất điện: Ngắt nguồn 30 giây → cắm lại
 ```
 

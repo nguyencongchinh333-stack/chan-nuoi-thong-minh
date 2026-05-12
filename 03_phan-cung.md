@@ -27,8 +27,8 @@
 | GPIO9 | Nút chế độ | INPUT_PULLUP |
 | GPIO10 | LED xanh AUTO | Qua R 220Ω |
 | GPIO11 | LED đỏ THỦ CÔNG | Qua R 220Ω |
-| GPIO12 | HC-SR04 ECHO | Qua phân áp 5V→3.3V |
-| GPIO13 | HC-SR04 TRIG | OUTPUT |
+| GPIO12 | AJ-SR04M ECHO | Qua phân áp 5V→3.3V |
+| GPIO13 | AJ-SR04M TRIG | OUTPUT |
 | GPIO14 | HX711 DT (cân) | |
 | GPIO26 | HX711 SCK (cân) | |
 
@@ -38,7 +38,7 @@
 |---------|---------|
 | 0x20 | MCP23017 #1 (relay kênh 0–15) |
 | 0x21 | MCP23017 #2 (relay kênh 16–31) |
-| 0x27 | LCD 20×4 I2C |
+| 0x27 | OLED SH1106 1.3" |
 | 0x44 | SHT30 điểm 1 (đầu chuồng) |
 | 0x45 | SHT30 điểm 2 (giữa chuồng) — địa chỉ thay đổi qua ADDR pin |
 | 0x46 | SHT30 điểm 3 (cuối chuồng) |
@@ -59,7 +59,7 @@
 | Số điểm đo | **3 điểm** (đầu / giữa / cuối chuồng) |
 | Lý do 3 điểm | Chuồng dài có thể chênh lệch 3–8°C theo chiều dài |
 
-### MQ-135 — Cảm Biến NH₃ (Amoniac)
+### SEN0321 — Cảm Biến NH₃ (Amoniac)
 
 | Thông số | Giá trị |
 |----------|---------|
@@ -85,7 +85,7 @@
 | Thời gian làm ấm | 3 phút |
 | Kết nối | TX→GPIO5, RX→GPIO4 |
 
-### HC-SR04 — Mức Thức Ăn
+### AJ-SR04M — Mức Thức Ăn
 
 | Thông số | Giá trị |
 |----------|---------|
@@ -112,7 +112,7 @@
 | Kênh | 4 single-ended hoặc 2 differential |
 | Độ phân giải | 16-bit |
 | Giao tiếp | I2C 0x48 |
-| Sử dụng | MQ-135 (AIN0), áp suất nước (AIN1) |
+| Sử dụng | SEN0321 (AIN0), áp suất nước (AIN1) |
 
 ---
 
