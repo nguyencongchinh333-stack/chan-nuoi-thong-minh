@@ -6,7 +6,7 @@
 
 | Thông số | Giá trị |
 |----------|---------|
-| Broker | `mqtt.nextfarm.vn` |
+| Broker | `broker.hosco.com.vn` |
 | Topic gốc | `livestock/{deviceID}/` |
 | Device ID | MAC address WiFi (tự động) |
 | LWT | `livestock/{id}/status` → `"offline"` |

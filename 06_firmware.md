@@ -23,7 +23,7 @@ arduino-cli lib install \
 
 ```cpp
 // Chỉnh sửa trước khi upload:
-const char* MQTT_HOST  = "mqtt.nextfarm.vn";
+const char* MQTT_HOST  = "broker.hosco.com.vn";
 const int   MQTT_PORT  = 1883;
 const char* MQTT_USER  = "device";
 const char* MQTT_PASS  = "secret";
@@ -77,7 +77,7 @@ const char* TZ_VN      = "ICT-7";
 
 // Cấu hình nhập qua portal WiFiManager lần đầu — lưu flash
 char cfgMaKhach[32]  = "";
-char cfgMqttHost[64] = "mqtt.nextfarm.vn";
+char cfgMqttHost[64] = "broker.hosco.com.vn";
 char cfgMqttUser[32] = "device";
 char cfgMqttPass[32] = "secret";
 char cfgMqttPort[8]  = "1883";
